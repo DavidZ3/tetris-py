@@ -1,6 +1,5 @@
 #!/usr/bin/python3
 import pygame
-import colored
 import random
 import game_colors
 from datetime import datetime
@@ -91,19 +90,21 @@ class tetrimino:
 class game_board:
     def __init__(self):
         pygame.init()
+        self.color_list = [game_colors.CYAN, game_colors.BLUE, 
+                game_colors.ORANGE, game_colors.YELLOW, game_colors.GREEN, 
+                game_colors.RED, game_colors.PINK]
 
-    def set_grid_dim(self, grid_width, grid_height, scale = 50, side_bar_width = 4):
+    def set_grid_dim(self, grid_width, grid_height, scale = 40, side_bar_width = 4):
         self.__scale = scale 
         self.grid_width = grid_width
         self.grid_height = grid_height
         self.side_bar_width = side_bar_width
-
-    def draw_grid(self):
-        grid_color = game_colors.WHITE
-
+        self.__board = self.grid_width*self.grid_height*[-1]
         self.screen = pygame.display.set_mode((self.__scale*(self.grid_width+self.side_bar_width), 
             self.__scale*self.grid_height))
 
+    def draw_grid(self):
+        grid_color = game_colors.WHITE
         for horizontal_line in range(self.grid_height+1):
             pygame.draw.line(self.screen, grid_color, 
                     (0, self.__scale*horizontal_line), 
@@ -114,9 +115,24 @@ class game_board:
                     (self.__scale*vertical_line, 0), 
                     (self.__scale*vertical_line, self.__scale*self.grid_height))
 
-    def draw_piece(piece_id):
+    def __set_coord_color(self, index, color):
+        index_x = index%self.grid_width
+        index_y = index//self.grid_width
 
+        rect = (index_x, index_y, 1, 1)
+        rect_scaled = tuple( self.__scale*ordin for ordin in rect)
+        pygame.draw.rect(self.screen, color, rect_scaled)
 
+    def draw_board(self):
+        for index, color_index in enumerate(self.__board):
+            if color_index != -1:
+                self.__set_coord_color(index, self.color_list[color_index])
+        self.draw_grid()
+
+    def fun_board_func(self):
+        rand_list = list(random.randint(0, len(self.color_list)-1) for _ in range(len(self.__board)))
+        self.__board = rand_list
+        self.draw_board()
 
 
 
@@ -126,16 +142,20 @@ class game:
         self.alive = True
         self.score = 0
         self.level = 1
+        self.lines_cleared = 0
         self.grid_width = 10
         self.grid_height = 20
+        self.fps_goal = 60
         # define board indices from left to right then top to bottom
         self.board= game_board()
         self.board.set_grid_dim(self.grid_width, self.grid_height)
         self.board.draw_grid()
+        self.board.draw_board()
         self.game_loop()
 
             
     def game_loop(self):
+        clock = pygame.time.Clock()
         while self.alive:
             new_piece = tetrimino()
             while new_piece.in_play:
@@ -143,8 +163,11 @@ class game:
                     if event.type == pygame.QUIT:
                         new_piece.in_play = False
                         self.alive = False
-
+                self.board.fun_board_func()
+                pygame.time.wait(1000//self.fps_goal)
                 pygame.display.flip()
+
+
 
 
 
