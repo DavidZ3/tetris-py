@@ -155,7 +155,7 @@ class game:
 
             
     def game_loop(self):
-        clock = pygame.time.Clock()
+        # clock = pygame.time.Clock()
         while self.alive:
             new_piece = tetrimino()
             while new_piece.in_play:
@@ -163,6 +163,11 @@ class game:
                     if event.type == pygame.QUIT:
                         new_piece.in_play = False
                         self.alive = False
+                    if event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_UP or event.key == pygame.K_x:
+                            new_piece.cw_rotation()
+                        if event.key == pygame.K_z:
+                            new_piece.ccw_rotation()
                 self.board.fun_board_func()
                 pygame.time.wait(1000//self.fps_goal)
                 pygame.display.flip()
