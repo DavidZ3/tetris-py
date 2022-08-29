@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 import pygame
+import pygame.freetype
 import random
 import game_colors
 from datetime import datetime
@@ -139,6 +140,17 @@ class game_board:
         self.color_list = [game_colors.CYAN, game_colors.BLUE, 
                 game_colors.ORANGE, game_colors.YELLOW, game_colors.GREEN, 
                 game_colors.RED, game_colors.PINK]
+    def clear_side_bar(self):
+        rect = (self.grid_width, 0, self.grid_width + self.side_bar_width, self.grid_height)
+        side_bar_rect = list(self.__scale*ordin for ordin in rect)
+        side_bar_rect[0] += 1
+        pygame.draw.rect(self.screen, 0x0, side_bar_rect)
+
+    def draw_fps(self, fps):
+        fps_font = pygame.freetype.SysFont("Times New Roman", 25)
+        fps_font.render_to(self.screen, 
+                (self.__scale*(self.grid_width + 1.5), 0, 0, 0), 
+                "FPS: " + fps, (255, 255, 255))
 
     def draw_grid(self):
         grid_color = game_colors.WHITE
@@ -206,7 +218,7 @@ class game:
         clock = pygame.time.Clock()
         while self.alive:
             pieces = tetrimino()
-            new_piece = pieces.new_tetromino()
+            pieces.new_tetromino()
             while pieces.in_play:
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
@@ -230,9 +242,12 @@ class game:
                 current_piece, color = itemgetter('current_piece', 'piece_id')(pieces.get_tetromino())
                 self.board.draw_board()
                 self.board.draw_current_piece(current_piece, color)
+                fps = str(clock.get_fps()).split(".")[0]
+                self.board.clear_side_bar()
+                self.board.draw_fps(fps)
                 pygame.display.flip()
                 clock.tick(self.fps_goal)
-                print(clock.get_fps())
+                
 
 
 
