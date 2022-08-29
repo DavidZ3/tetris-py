@@ -68,6 +68,7 @@ class tetrimino:
         Z_piece = [(0, 1, 5, 6), (1, 4, 5, 8)]
         T_piece = [(1, 4, 5, 6), (0, 4, 5, 8), (0, 1, 2, 5), (1, 4, 5, 9)]
         self.grid_width = 10
+        self.grid_height = 20
         self.unmapped_pieces = [I_piece, J_piece, L_piece, O_piece,
                 S_piece, Z_piece, T_piece]
         self.possible_pieces = self.map_pieces()
@@ -104,6 +105,11 @@ class tetrimino:
     def shift_right(self):
         if self.grid_width-1 not in map(lambda index: index%self.grid_width, self.current_piece):
             self.current_piece = [index + 1 for index in self.current_piece]
+    
+    def soft_drop(self):
+        if self.grid_height-1 not in map(lambda index: index//self.grid_width, self.current_piece):
+            self.current_piece = [index + self.grid_width for index in self.current_piece]
+
 
 
     def new_tetromino(self):
@@ -236,6 +242,8 @@ class game:
                             pieces.shift_left()
                         if event.key == pygame.K_RIGHT:
                             pieces.shift_right()
+                        if event.key == pygame.K_DOWN:
+                            pieces.soft_drop()
                         # Debug key -> get new piece with n
                         if event.key == pygame.K_n:
                             pieces.new_tetromino()
