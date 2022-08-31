@@ -60,7 +60,8 @@ from operator import itemgetter
 
 class tetrimino:
     def __init__(self):
-        I_piece = [(0, 1, 2, 3), (3, 7, 11, 15), (0, 4, 8, 12)]
+        # I_piece = [(0, 1, 2, 3), (3, 7, 11, 15), (0, 4, 8, 12)]
+        I_piece = [(0, 1, 2, 3), (2, 6, 10, 14)]
         J_piece = [(0, 4, 5, 6), (0, 1, 4, 8), (0, 1, 2, 6), (1, 5, 8, 9)]
         L_piece = [(2, 4, 5, 6), (0, 4, 8, 9), (0, 1, 2, 4), (0, 1, 5, 9)]
         O_piece = [(0, 1, 4, 5)]
@@ -98,39 +99,55 @@ class tetrimino:
             mapped_possible_pieces.append(all_states)
         return mapped_possible_pieces
 
-    def shift_left(self):
-        if 0 not in map(lambda index: index%self.grid_width, self.current_piece):
-            self.current_piece = [index - 1 for index in self.current_piece]
-
-    def shift_right(self):
-        if self.grid_width-1 not in map(lambda index: index%self.grid_width, self.current_piece):
-            self.current_piece = [index + 1 for index in self.current_piece]
-    
-    def soft_drop(self):
-        if self.grid_height-1 not in map(lambda index: index//self.grid_width, self.current_piece):
-            self.current_piece = [index + self.grid_width for index in self.current_piece]
-
-
-
     def new_tetromino(self):
         # using random piece for now but will change to randomise a buffer
         # for lower varience later.
         self.piece_id = random.randint(0, len(self.possible_pieces) - 1)
         self.rotation_num = 0
-        self.current_piece = self.possible_pieces[self.piece_id][self.rotation_num]
-   
-    def cw_rotation(self):
-        self.rotation_num = (self.rotation_num + 1)%len(self.possible_pieces[self.piece_id])
-        self.current_piece = self.possible_pieces[self.piece_id][self.rotation_num]
-
-    def ccw_rotation(self):
-        self.rotation_num = (self.rotation_num - 1)%len(self.possible_pieces[self.piece_id])
-        self.current_piece = self.possible_pieces[self.piece_id][self.rotation_num]
+        self.current_piece = self.possible_pieces[self.piece_id]
+        self.current_state = self.possible_pieces[self.piece_id][self.rotation_num]
 
     def get_tetromino(self):
-        return {"piece_id": self.piece_id, "current_piece": self.current_piece}
+        return {"piece_id": self.piece_id, "current_state": self.current_state}
+
+    def shift_left(self):
+        new_current_piece = []
+        print(self.current_piece)
+        for state in self.current_piece:
+            if 0 not in map(lambda index: index%self.grid_width, state):
+                state = [index - 1 for index in state]
+            new_current_piece.append(state)
+        self.current_piece = new_current_piece
+        self.current_state = new_current_piece[self.rotation_num]
+
+    def shift_right(self):
+        new_current_piece = []
+        print(self.current_piece)
+        for state in self.current_piece:
+            if self.grid_width-1 not in map(lambda index: index%self.grid_width, state):
+                state = [index + 1 for index in state]
+            new_current_piece.append(state)
+        self.current_piece = new_current_piece
+        self.current_state = new_current_piece[self.rotation_num]
+    
+    def soft_drop(self):
+        new_current_piece = []
+        print(self.current_piece)
+        for state in self.current_piece:
+            if self.grid_height-1 not in map(lambda index: index//self.grid_width, state):
+                state = [index + self.grid_width for index in state]
+            new_current_piece.append(state)
+        self.current_piece = new_current_piece
+        self.current_state = new_current_piece[self.rotation_num]
 
 
+    def cw_rotation(self):
+        self.rotation_num = (self.rotation_num + 1)%len(self.current_piece)
+        self.current_state = self.current_piece[self.rotation_num]
+
+    def ccw_rotation(self):
+        self.rotation_num = (self.rotation_num - 1)%len(self.current_piece)
+        self.current_state = self.current_piece[self.rotation_num]
 
 
 
@@ -140,7 +157,7 @@ class game_board:
         self.grid_width = grid_width
         self.grid_height = grid_height
         self.side_bar_width = side_bar_width
-        self.__board = self.grid_width*self.grid_height*[-1]
+        self._board = self.grid_width*self.grid_height*[-1]
         self.screen = pygame.display.set_mode((self.__scale*(self.grid_width+self.side_bar_width), 
             self.__scale*self.grid_height))
         self.color_list = [game_colors.CYAN, game_colors.BLUE, 
@@ -179,21 +196,21 @@ class game_board:
         pygame.draw.rect(self.screen, color, rect_scaled)
 
     def draw_board(self):
-        for index, color_index in enumerate(self.__board):
+        for index, color_index in enumerate(self._board):
             if color_index != -1:
                 self.__set_coord_color(index, self.color_list[color_index])
             else:
                 self.__set_coord_color(index, 0x0)
         self.draw_grid()
 
-    def draw_current_piece(self, current_piece, color):
-        for index in current_piece:
+    def draw_current_state(self, current_state, color):
+        for index in current_state:
             if color < len(self.color_list):
                 self.__set_coord_color(index, self.color_list[color])
 
     def fun_board_func(self):
-        rand_list = list(random.randint(0, len(self.color_list)-1) for _ in range(len(self.__board)))
-        self.__board = rand_list
+        rand_list = list(random.randint(0, len(self.color_list)-1) for _ in range(len(self._board)))
+        self._board = rand_list
         self.draw_board()
 
 
@@ -247,9 +264,9 @@ class game:
                         # Debug key -> get new piece with n
                         if event.key == pygame.K_n:
                             pieces.new_tetromino()
-                current_piece, color = itemgetter('current_piece', 'piece_id')(pieces.get_tetromino())
+                current_state, color = itemgetter('current_state', 'piece_id')(pieces.get_tetromino())
                 self.board.draw_board()
-                self.board.draw_current_piece(current_piece, color)
+                self.board.draw_current_state(current_state, color)
                 fps = str(clock.get_fps()).split(".")[0]
                 self.board.clear_side_bar()
                 self.board.draw_fps(fps)
@@ -263,7 +280,7 @@ class game:
 
 def main():
     random.seed(datetime.now().timestamp())
-    new_game = game()
+    game()
 
 
 if __name__ == '__main__':
