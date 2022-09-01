@@ -79,6 +79,9 @@ class tetrimino:
                 game_colors.RED, game_colors.PINK]
         self.new_tetromino()
 
+    def read_board(self, board):
+        self.board = board
+
     def map_pieces(self):
         mapped_possible_pieces = []
         for piece_id, piece_all_state in enumerate(self.unmapped_pieces):
@@ -88,11 +91,11 @@ class tetrimino:
                 for index in piece_state:
                     if piece_id in (2, 4, 3, 6):
                         y_multi = index//4
-                        index += y_multi*self.grid_width - 4*y_multi + self.grid_width/2 - 1
+                        index += y_multi*self.grid_width - 4*y_multi + self.grid_width//2 - 1
                         single_state.append(index)
                     else:
                         y_multi = index//4
-                        index += y_multi*self.grid_width - 4*y_multi + self.grid_width/2 - 2
+                        index += y_multi*self.grid_width - 4*y_multi + self.grid_width//2 - 2
                         single_state.append(index)
 
                 all_states.append(tuple(single_state))
@@ -102,13 +105,16 @@ class tetrimino:
     def new_tetromino(self):
         # using random piece for now but will change to randomise a buffer
         # for lower varience later.
-        self.piece_id = random.randint(0, len(self.possible_pieces) - 1)
+        self.piece_id = random.randint(0, len(self.possible_pieces)- 1)
         self.rotation_num = 0
         self.current_piece = self.possible_pieces[self.piece_id]
         self.current_state = self.possible_pieces[self.piece_id][self.rotation_num]
+        self.in_play = True
 
     def get_tetromino(self):
         return {"piece_id": self.piece_id, "current_state": self.current_state}
+        
+
 
     def shift_left(self):
         new_current_piece = []
@@ -133,8 +139,10 @@ class tetrimino:
     def soft_drop(self):
         new_current_piece = []
         print(self.current_piece)
+        ghost_piece = self.board.get_ghost_piece()
         for state in self.current_piece:
-            if self.grid_height-1 not in map(lambda index: index//self.grid_width, state):
+            if sum(state) < sum(ghost_piece):
+            #if self.grid_height-1 not in map(lambda index: index//self.grid_width, state):
                 state = [index + self.grid_width for index in state]
             new_current_piece.append(state)
         self.current_piece = new_current_piece
@@ -152,6 +160,9 @@ class tetrimino:
 
 
 class game_board:
+    def read_tetromino(self, pieces):
+        self.pieces = pieces
+
     def set_grid_dim(self, grid_width, grid_height, scale = 40, side_bar_width = 4):
         self.__scale = scale 
         self.grid_width = grid_width
@@ -186,6 +197,30 @@ class game_board:
             pygame.draw.line(self.screen, grid_color, 
                     (self.__scale*vertical_line, 0), 
                     (self.__scale*vertical_line, self.__scale*self.grid_height))
+    def get_ghost_piece(self):
+        # terrible implentation for time-complexity (possible hashmap solution)
+        piece_collision = False
+        end_of_board  = False
+        ghost_piece = self.pieces.current_state
+        while not piece_collision and not end_of_board:
+            new_ghost_piece = tuple(index + self.grid_width for index in ghost_piece)
+            print({"new_ghost_piece": new_ghost_piece})
+            for index in new_ghost_piece:
+                if index >= len(self._board):
+                    end_of_board = True
+                    break
+                if self._board[index] != -1:
+                    piece_collision = True
+                    break
+            if not piece_collision and not end_of_board:
+                ghost_piece = new_ghost_piece
+        return ghost_piece
+
+    def draw_ghost_piece(self):
+        ghost_piece = self.get_ghost_piece()
+        if ghost_piece != self.pieces.current_state:
+            for index in ghost_piece:
+                self.__set_coord_color(index, game_colors.WHITE)
 
     def __set_coord_color(self, index, color):
         index_x = index%self.grid_width
@@ -207,11 +242,21 @@ class game_board:
         for index in current_state:
             if color < len(self.color_list):
                 self.__set_coord_color(index, self.color_list[color])
+    
+    def draw_all(self):
+        self.draw_grid()
+        self.draw_board()
 
     def fun_board_func(self):
         rand_list = list(random.randint(0, len(self.color_list)-1) for _ in range(len(self._board)))
         self._board = rand_list
         self.draw_board()
+
+    def add_tetromino_to_board(self):
+        drop_index = self.get_ghost_piece()
+        for piece_idx in drop_index:
+            self._board[piece_idx] = self.pieces.piece_id
+        self.pieces.in_play = False
 
 
 
@@ -222,6 +267,7 @@ class game:
         delay = 130
         repeat = 100
         pygame.key.set_repeat(delay, repeat)
+        self.pieces = tetrimino()
         self.alive = True
         self.score = 0
         self.level = 1
@@ -232,44 +278,47 @@ class game:
         # define board indices from left to right then top to bottom
         self.board = game_board()
         self.board.set_grid_dim(self.grid_width, self.grid_height)
-        self.board.draw_grid()
-        self.board.draw_board()
+        self.board.read_tetromino(self.pieces)
+        self.board.draw_all()
+        self.pieces.read_board(self.board)
         self.game_loop()
 
             
     def game_loop(self):
         clock = pygame.time.Clock()
         while self.alive:
-            pieces = tetrimino()
-            pieces.new_tetromino()
-            while pieces.in_play:
+            self.pieces.new_tetromino()
+            while self.pieces.in_play:
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
-                        pieces.in_play = False
+                        self.pieces.in_play = False
                         self.alive = False
                     if event.type == pygame.KEYDOWN:
                         if event.key == pygame.K_q:
-                            pieces.in_play = False
+                            self.pieces.in_play = False
                             self.alive = False
                         if event.key == pygame.K_UP or event.key == pygame.K_x:
-                            pieces.cw_rotation()
+                            self.pieces.cw_rotation()
                         if event.key == pygame.K_z:
-                            pieces.ccw_rotation()
+                            self.pieces.ccw_rotation()
                         if event.key == pygame.K_LEFT:
-                            pieces.shift_left()
+                            self.pieces.shift_left()
                         if event.key == pygame.K_RIGHT:
-                            pieces.shift_right()
+                            self.pieces.shift_right()
                         if event.key == pygame.K_DOWN:
-                            pieces.soft_drop()
+                            self.pieces.soft_drop()
                         # Debug key -> get new piece with n
                         if event.key == pygame.K_n:
-                            pieces.new_tetromino()
-                current_state, color = itemgetter('current_state', 'piece_id')(pieces.get_tetromino())
+                            self.pieces.new_tetromino()
+                        if event.key == pygame.K_SPACE:
+                            self.board.add_tetromino_to_board()
+                current_state, color = itemgetter('current_state', 'piece_id')(self.pieces.get_tetromino())
                 self.board.draw_board()
                 self.board.draw_current_state(current_state, color)
                 fps = str(clock.get_fps()).split(".")[0]
                 self.board.clear_side_bar()
                 self.board.draw_fps(fps)
+                self.board.draw_ghost_piece()
                 pygame.display.flip()
                 clock.tick(self.fps_goal)
                 
