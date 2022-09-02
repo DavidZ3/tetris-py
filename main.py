@@ -74,8 +74,8 @@ class tetrimino:
                 S_piece, Z_piece, T_piece]
         self.possible_pieces = self.map_pieces()
         self.in_play = True
-        self.color_list = [game_colors.CYAN, game_colors.BLUE, 
-                game_colors.ORANGE, game_colors.YELLOW, game_colors.GREEN, 
+        self.color_list = [game_colors.CYAN, game_colors.BLUE,
+                game_colors.ORANGE, game_colors.YELLOW, game_colors.GREEN,
                 game_colors.RED, game_colors.PINK]
         self.new_tetromino()
 
@@ -113,32 +113,39 @@ class tetrimino:
 
     def get_tetromino(self):
         return {"piece_id": self.piece_id, "current_state": self.current_state}
-        
 
 
     def shift_left(self):
         new_current_piece = []
-        print(self.current_piece)
+        #print(self.current_piece)
+        board_idx = self.board.get_board_indices()
         for state in self.current_piece:
-            if 0 not in map(lambda index: index%self.grid_width, state):
-                state = [index - 1 for index in state]
-            new_current_piece.append(state)
+            new_state = [index + 1 for index in state]
+            if 0 not in map(lambda index: index%self.grid_width, state) and \
+                all(state_idx not in board_idx for state_idx in new_state):
+                    new_current_piece.append(new_state)
+            else:
+                new_current_piece.append(state)
         self.current_piece = new_current_piece
         self.current_state = new_current_piece[self.rotation_num]
 
     def shift_right(self):
         new_current_piece = []
-        print(self.current_piece)
+        #print(self.current_piece)
+        board_idx = self.board.get_board_indices()
         for state in self.current_piece:
-            if self.grid_width-1 not in map(lambda index: index%self.grid_width, state):
-                state = [index + 1 for index in state]
-            new_current_piece.append(state)
+            new_state = [index + 1 for index in state]
+            if self.grid_width-1 not in map(lambda index: index%self.grid_width, state) and \
+                all(state_idx not in board_idx for state_idx in new_state):
+                    new_current_piece.append(new_state)
+            else:
+                new_current_piece.append(state)
         self.current_piece = new_current_piece
         self.current_state = new_current_piece[self.rotation_num]
-    
+
     def soft_drop(self):
         new_current_piece = []
-        print(self.current_piece)
+        #print(self.current_piece)
         ghost_piece = self.board.get_ghost_piece()
         for state in self.current_piece:
             if sum(state) < sum(ghost_piece):
@@ -163,16 +170,23 @@ class game_board:
     def read_tetromino(self, pieces):
         self.pieces = pieces
 
+    def get_board_indices(self):
+        board_arr = []
+        for idx, piece_id in enumerate(self._board):
+            if piece_id != -1:
+                board_arr.append(idx)
+        return board_arr
+
     def set_grid_dim(self, grid_width, grid_height, scale = 40, side_bar_width = 4):
-        self.__scale = scale 
+        self.__scale = scale
         self.grid_width = grid_width
         self.grid_height = grid_height
         self.side_bar_width = side_bar_width
         self._board = self.grid_width*self.grid_height*[-1]
-        self.screen = pygame.display.set_mode((self.__scale*(self.grid_width+self.side_bar_width), 
+        self.screen = pygame.display.set_mode((self.__scale*(self.grid_width+self.side_bar_width),
             self.__scale*self.grid_height))
-        self.color_list = [game_colors.CYAN, game_colors.BLUE, 
-                game_colors.ORANGE, game_colors.YELLOW, game_colors.GREEN, 
+        self.color_list = [game_colors.CYAN, game_colors.BLUE,
+                game_colors.ORANGE, game_colors.YELLOW, game_colors.GREEN,
                 game_colors.RED, game_colors.PINK]
     def clear_side_bar(self):
         rect = (self.grid_width, 0, self.grid_width + self.side_bar_width, self.grid_height)
@@ -182,21 +196,22 @@ class game_board:
 
     def draw_fps(self, fps):
         fps_font = pygame.freetype.SysFont("Times New Roman", 25)
-        fps_font.render_to(self.screen, 
-                (self.__scale*(self.grid_width + 1.5), 0, 0, 0), 
+        fps_font.render_to(self.screen,
+                (self.__scale*(self.grid_width + 1.5), 0, 0, 0),
                 "FPS: " + fps, (255, 255, 255))
 
     def draw_grid(self):
         grid_color = game_colors.WHITE
         for horizontal_line in range(self.grid_height+1):
-            pygame.draw.line(self.screen, grid_color, 
-                    (0, self.__scale*horizontal_line), 
+            pygame.draw.line(self.screen, grid_color,
+                    (0, self.__scale*horizontal_line),
                     (self.__scale*self.grid_width, self.__scale*horizontal_line))
 
         for vertical_line in range(self.grid_width+1):
-            pygame.draw.line(self.screen, grid_color, 
-                    (self.__scale*vertical_line, 0), 
+            pygame.draw.line(self.screen, grid_color,
+                    (self.__scale*vertical_line, 0),
                     (self.__scale*vertical_line, self.__scale*self.grid_height))
+
     def get_ghost_piece(self):
         # terrible implentation for time-complexity (possible hashmap solution)
         piece_collision = False
@@ -204,7 +219,7 @@ class game_board:
         ghost_piece = self.pieces.current_state
         while not piece_collision and not end_of_board:
             new_ghost_piece = tuple(index + self.grid_width for index in ghost_piece)
-            print({"new_ghost_piece": new_ghost_piece})
+            #print({"new_ghost_piece": new_ghost_piece})
             for index in new_ghost_piece:
                 if index >= len(self._board):
                     end_of_board = True
@@ -242,7 +257,7 @@ class game_board:
         for index in current_state:
             if color < len(self.color_list):
                 self.__set_coord_color(index, self.color_list[color])
-    
+
     def draw_all(self):
         self.draw_grid()
         self.draw_board()
@@ -283,7 +298,7 @@ class game:
         self.pieces.read_board(self.board)
         self.game_loop()
 
-            
+
     def game_loop(self):
         clock = pygame.time.Clock()
         while self.alive:
@@ -321,7 +336,7 @@ class game:
                 self.board.draw_ghost_piece()
                 pygame.display.flip()
                 clock.tick(self.fps_goal)
-                
+
 
 
 
