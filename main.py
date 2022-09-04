@@ -325,12 +325,10 @@ class game_board:
         if clear_rows:
             indices_to_pad = len(self._board) - len(full_rows)
             full_rows = indices_to_pad*[-1] + full_rows
-            print(full_rows)
+            #print(full_rows)
             self._board = full_rows
-
-
-
-
+        
+        return clear_rows
 
 
 
@@ -360,6 +358,7 @@ class game:
 
     def game_loop(self):
         clock = pygame.time.Clock()
+        print(f"Score: {self.score}")
         while self.alive:
             self.pieces.new_tetromino()
             input_cooldown = self.input_delay
@@ -396,12 +395,18 @@ class game:
                 self.board.draw_board()
                 self.board.draw_ghost_piece()
                 self.board.draw_current_state(current_state, color)
-                self.board.clear_full_rows()
+                clear_lines = self.board.clear_full_rows()
+                self.add_score(clear_lines)
                 fps = str(clock.get_fps()).split(".")[0]
                 self.board.clear_side_bar()
                 self.board.draw_fps(fps)
                 pygame.display.flip()
                 clock.tick(self.fps_goal)
+        
+    def add_score(self, clear_lines):
+        self.score += clear_lines
+        if clear_lines:
+            print(f"Score: {self.score}")
 
 
 
