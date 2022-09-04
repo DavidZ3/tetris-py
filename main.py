@@ -77,6 +77,7 @@ class tetrimino:
         self.color_list = [game_colors.CYAN, game_colors.BLUE,
                 game_colors.ORANGE, game_colors.YELLOW, game_colors.GREEN,
                 game_colors.RED, game_colors.PINK]
+        self.upcoming_pieces = []
         self.new_tetromino()
 
     def read_board(self, board):
@@ -105,11 +106,17 @@ class tetrimino:
     def new_tetromino(self):
         # using random piece for now but will change to randomise a buffer
         # for lower varience later.
+        if self.upcoming_pieces == []:
+            self.populate_upcoming_pieces()
         self.piece_id = random.randint(0, len(self.possible_pieces)- 1)
         self.rotation_num = 0
         self.current_piece = self.possible_pieces[self.piece_id]
         self.current_state = self.possible_pieces[self.piece_id][self.rotation_num]
         self.in_play = True
+
+    def populate_upcoming_pieces(self):
+        upcoming_pieces = 5*self.possible_pieces
+        print(upcoming_pieces)
 
     def get_tetromino(self):
         return {"piece_id": self.piece_id, "current_state": self.current_state}
@@ -119,29 +126,37 @@ class tetrimino:
         new_current_piece = []
         #print(self.current_piece)
         board_idx = self.board.get_board_indices()
-        for state in self.current_piece:
-            new_state = [index + 1 for index in state]
-            if 0 not in map(lambda index: index%self.grid_width, state) and \
-                all(state_idx not in board_idx for state_idx in new_state):
-                    new_current_piece.append(new_state)
-            else:
-                new_current_piece.append(state)
-        self.current_piece = new_current_piece
-        self.current_state = new_current_piece[self.rotation_num]
+
+        # check if current_state is stuck first
+        new_state = [index - 1 for index in self.current_state]
+        if all(state_idx not in board_idx for state_idx in new_state):
+            for state in self.current_piece:
+                new_state = [index - 1 for index in state]
+                if 0 not in map(lambda index: index%self.grid_width, state) and \
+                    all(state_idx not in board_idx for state_idx in new_state):
+                        new_current_piece.append(new_state)
+                else:
+                    new_current_piece.append(state)
+            self.current_piece = new_current_piece
+            self.current_state = new_current_piece[self.rotation_num]
 
     def shift_right(self):
         new_current_piece = []
         #print(self.current_piece)
         board_idx = self.board.get_board_indices()
-        for state in self.current_piece:
-            new_state = [index + 1 for index in state]
-            if self.grid_width-1 not in map(lambda index: index%self.grid_width, state) and \
-                all(state_idx not in board_idx for state_idx in new_state):
-                    new_current_piece.append(new_state)
-            else:
-                new_current_piece.append(state)
-        self.current_piece = new_current_piece
-        self.current_state = new_current_piece[self.rotation_num]
+
+        # check if current_state is stuck first
+        new_state = [index + 1 for index in self.current_state]
+        if all(state_idx not in board_idx for state_idx in new_state):
+            for state in self.current_piece:
+                new_state = [index + 1 for index in state]
+                if self.grid_width-1 not in map(lambda index: index%self.grid_width, state) and \
+                    all(state_idx not in board_idx for state_idx in new_state):
+                        new_current_piece.append(new_state)
+                else:
+                    new_current_piece.append(state)
+            self.current_piece = new_current_piece
+            self.current_state = new_current_piece[self.rotation_num]
 
     def soft_drop(self):
         new_current_piece = []
@@ -157,12 +172,26 @@ class tetrimino:
 
 
     def cw_rotation(self):
+        board_idx = self.board.get_board_indices()
+        inital_rotation_num = self.rotation_num
         self.rotation_num = (self.rotation_num + 1)%len(self.current_piece)
-        self.current_state = self.current_piece[self.rotation_num]
+        while self.rotation_num != inital_rotation_num:
+            if all(idx not in board_idx for idx in self.current_piece[self.rotation_num]):
+                self.current_state = self.current_piece[self.rotation_num]
+                return
+            self.rotation_num = (self.rotation_num + 1)%len(self.current_piece)
+
+
 
     def ccw_rotation(self):
+        board_idx = self.board.get_board_indices()
+        inital_rotation_num = self.rotation_num
         self.rotation_num = (self.rotation_num - 1)%len(self.current_piece)
-        self.current_state = self.current_piece[self.rotation_num]
+        while self.rotation_num != inital_rotation_num:
+            if all(idx not in board_idx for idx in self.current_piece[self.rotation_num]):
+                self.current_state = self.current_piece[self.rotation_num]
+                return
+            self.rotation_num = (self.rotation_num - 1)%len(self.current_piece)
 
 
 
@@ -273,6 +302,15 @@ class game_board:
             self._board[piece_idx] = self.pieces.piece_id
         self.pieces.in_play = False
 
+    def clear_full_rows(self):
+        full_rows = []
+        clear_rows = 0
+        for row_number in range(self.grid_height):
+            row = self._board[row_number*self.grid_width:(1+ row_number)*self.grid_width - 1]
+            if all(piece_id != -1 for piece_id in row):
+                full_rows.append(row_number)
+                clear_rows += 1
+
 
 
 
@@ -289,18 +327,20 @@ class game:
         self.lines_cleared = 0
         self.grid_width = 10
         self.grid_height = 20
-        self.fps_goal = 144
+        self.fps_goal = 60
         # define board indices from left to right then top to bottom
         self.board = game_board()
         self.board.set_grid_dim(self.grid_width, self.grid_height)
         self.board.read_tetromino(self.pieces)
         self.board.draw_all()
         self.pieces.read_board(self.board)
+        self.input_delay = self.fps_goal//8
         self.game_loop()
 
 
     def game_loop(self):
         clock = pygame.time.Clock()
+        input_cooldown = 0
         while self.alive:
             self.pieces.new_tetromino()
             while self.pieces.in_play:
@@ -312,10 +352,6 @@ class game:
                         if event.key == pygame.K_q:
                             self.pieces.in_play = False
                             self.alive = False
-                        if event.key == pygame.K_UP or event.key == pygame.K_x:
-                            self.pieces.cw_rotation()
-                        if event.key == pygame.K_z:
-                            self.pieces.ccw_rotation()
                         if event.key == pygame.K_LEFT:
                             self.pieces.shift_left()
                         if event.key == pygame.K_RIGHT:
@@ -325,15 +361,23 @@ class game:
                         # Debug key -> get new piece with n
                         if event.key == pygame.K_n:
                             self.pieces.new_tetromino()
-                        if event.key == pygame.K_SPACE:
-                            self.board.add_tetromino_to_board()
+                        if input_cooldown <= 0:
+                            input_cooldown = self.input_delay
+                            if event.key == pygame.K_SPACE:
+                                    self.board.add_tetromino_to_board()
+                            if event.key == pygame.K_UP or event.key == pygame.K_x:
+                                self.pieces.cw_rotation()
+                            if event.key == pygame.K_z:
+                                self.pieces.ccw_rotation()
+                input_cooldown -= 1
                 current_state, color = itemgetter('current_state', 'piece_id')(self.pieces.get_tetromino())
                 self.board.draw_board()
+                self.board.draw_ghost_piece()
                 self.board.draw_current_state(current_state, color)
+                self.board.clear_full_rows()
                 fps = str(clock.get_fps()).split(".")[0]
                 self.board.clear_side_bar()
                 self.board.draw_fps(fps)
-                self.board.draw_ghost_piece()
                 pygame.display.flip()
                 clock.tick(self.fps_goal)
 
