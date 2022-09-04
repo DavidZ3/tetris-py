@@ -316,10 +316,20 @@ class game_board:
         full_rows = []
         clear_rows = 0
         for row_number in range(self.grid_height):
-            row = self._board[row_number*self.grid_width:(1+ row_number)*self.grid_width - 1]
+            row = self._board[row_number*self.grid_width:(1+ row_number)*self.grid_width]
             if all(piece_id != -1 for piece_id in row):
-                full_rows.append(row_number)
                 clear_rows += 1
+            else:
+                full_rows += row
+
+        if clear_rows:
+            indices_to_pad = len(self._board) - len(full_rows)
+            full_rows = indices_to_pad*[-1] + full_rows
+            print(full_rows)
+            self._board = full_rows
+
+
+
 
 
 
@@ -337,7 +347,7 @@ class game:
         self.lines_cleared = 0
         self.grid_width = 10
         self.grid_height = 20
-        self.fps_goal = 60
+        self.fps_goal = 200
         # define board indices from left to right then top to bottom
         self.board = game_board()
         self.board.set_grid_dim(self.grid_width, self.grid_height)
