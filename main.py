@@ -116,7 +116,7 @@ class tetrimino:
 
     def populate_upcoming_pieces(self):
         upcoming_pieces = 5*self.possible_pieces
-        print(upcoming_pieces)
+
 
     def get_tetromino(self):
         return {"piece_id": self.piece_id, "current_state": self.current_state}
@@ -241,6 +241,10 @@ class game_board:
                     (self.__scale*vertical_line, 0),
                     (self.__scale*vertical_line, self.__scale*self.grid_height))
 
+    def reset_board(self):
+        self._board = self.grid_width*self.grid_height*[-1]
+        self.draw_board()
+
     def get_ghost_piece(self):
         # terrible implentation for time-complexity (possible hashmap solution)
         piece_collision = False
@@ -340,9 +344,9 @@ class game:
 
     def game_loop(self):
         clock = pygame.time.Clock()
-        input_cooldown = 0
         while self.alive:
             self.pieces.new_tetromino()
+            input_cooldown = self.input_delay
             while self.pieces.in_play:
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
@@ -359,6 +363,8 @@ class game:
                         if event.key == pygame.K_DOWN:
                             self.pieces.soft_drop()
                         # Debug key -> get new piece with n
+                        if event.key == pygame.K_r:
+                            self.board.reset_board()
                         if event.key == pygame.K_n:
                             self.pieces.new_tetromino()
                         if input_cooldown <= 0:
