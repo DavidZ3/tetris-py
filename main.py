@@ -68,6 +68,9 @@ class tetrimino:
         S_piece = [(1, 2, 4, 5), (0, 4, 5, 9)]
         Z_piece = [(0, 1, 5, 6), (1, 4, 5, 8)]
         T_piece = [(1, 4, 5, 6), (0, 4, 5, 8), (0, 1, 2, 5), (1, 4, 5, 9)]
+        NUM_OF_PIECE_TYPES = 7
+        self.possible_piece_ids = [*range(NUM_OF_PIECE_TYPES)]
+        self.new_piece_buffer_size = 3
         self.grid_width = 10
         self.grid_height = 20
         self.unmapped_pieces = [I_piece, J_piece, L_piece, O_piece,
@@ -108,14 +111,17 @@ class tetrimino:
         # for lower varience later.
         if self.upcoming_pieces == []:
             self.populate_upcoming_pieces()
-        self.piece_id = random.randint(0, len(self.possible_pieces)- 1)
+        self.piece_id = self.upcoming_pieces.pop()
         self.rotation_num = 0
         self.current_piece = self.possible_pieces[self.piece_id]
         self.current_state = self.possible_pieces[self.piece_id][self.rotation_num]
         self.in_play = True
 
     def populate_upcoming_pieces(self):
-        upcoming_pieces = 5*self.possible_pieces
+        upcoming_pieces = self.new_piece_buffer_size*self.possible_piece_ids
+        random.shuffle(upcoming_pieces)
+        self.upcoming_pieces = upcoming_pieces
+
 
 
     def get_tetromino(self):
