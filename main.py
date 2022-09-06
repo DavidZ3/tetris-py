@@ -3,6 +3,7 @@ import pygame
 import pygame.freetype
 import random
 import game_colors
+import json
 from datetime import datetime
 from operator import itemgetter
 
@@ -70,7 +71,7 @@ class tetrimino:
         T_piece = [(1, 4, 5, 6), (0, 4, 5, 8), (0, 1, 2, 5), (1, 4, 5, 9)]
         NUM_OF_PIECE_TYPES = 7
         self.possible_piece_ids = [*range(NUM_OF_PIECE_TYPES)]
-        self.new_piece_buffer_size = 3
+        self.new_piece_buffer_size = 2
         self.grid_width = 10
         self.grid_height = 20
         self.unmapped_pieces = [I_piece, J_piece, L_piece, O_piece,
@@ -205,6 +206,22 @@ class game_board:
     def read_tetromino(self, pieces):
         self.pieces = pieces
 
+    def save_board(self):
+        try:
+            with open("save.json", "w+") as file:
+                board_obj = {"board": self._board}
+                json.dump(board_obj, file)
+        except:
+            print("failed to open save.json")
+
+    def load_save(self):
+        try:
+            with open("save.json", "r") as file:
+                self._board = json.load(file)["board"]
+        except:
+            print("failed to open save.json")
+
+
     def get_board_indices(self):
         board_arr = []
         for idx, piece_id in enumerate(self._board):
@@ -229,10 +246,19 @@ class game_board:
         side_bar_rect[0] += 1
         pygame.draw.rect(self.screen, 0x0, side_bar_rect)
 
+    def draw_score(self, lines, score):
+        score_font = pygame.freetype.SysFont("Times New Roman", 25)
+        score_font.render_to(self.screen,
+                (self.__scale*(self.grid_width + 0.5), 20, 0, 0),
+                f"Lines: {lines}", (255, 255, 255))
+        score_font.render_to(self.screen,
+                (self.__scale*(self.grid_width + 0.5), 40, 0, 0),
+                f"Score: {score}", (255, 255, 255))
+
     def draw_fps(self, fps):
         fps_font = pygame.freetype.SysFont("Times New Roman", 25)
         fps_font.render_to(self.screen,
-                (self.__scale*(self.grid_width + 1.5), 0, 0, 0),
+                (self.__scale*(self.grid_width + 0.5), 0, 0, 0),
                 "FPS: " + fps, (255, 255, 255))
 
     def draw_grid(self):
@@ -325,9 +351,8 @@ class game_board:
         if clear_rows:
             indices_to_pad = len(self._board) - len(full_rows)
             full_rows = indices_to_pad*[-1] + full_rows
-            #print(full_rows)
             self._board = full_rows
-        
+
         return clear_rows
 
 
@@ -335,8 +360,8 @@ class game_board:
 class game:
     def __init__(self):
         pygame.init()
-        delay = 130
-        repeat = 100
+        delay = 100
+        repeat = 30
         pygame.key.set_repeat(delay, repeat)
         self.pieces = tetrimino()
         self.alive = True
@@ -358,7 +383,6 @@ class game:
 
     def game_loop(self):
         clock = pygame.time.Clock()
-        print(f"Score: {self.score}")
         while self.alive:
             self.pieces.new_tetromino()
             input_cooldown = self.input_delay
@@ -377,11 +401,6 @@ class game:
                             self.pieces.shift_right()
                         if event.key == pygame.K_DOWN:
                             self.pieces.soft_drop()
-                        # Debug key -> get new piece with n
-                        if event.key == pygame.K_r:
-                            self.board.reset_board()
-                        if event.key == pygame.K_n:
-                            self.pieces.new_tetromino()
                         if input_cooldown <= 0:
                             input_cooldown = self.input_delay
                             if event.key == pygame.K_SPACE:
@@ -390,6 +409,15 @@ class game:
                                 self.pieces.cw_rotation()
                             if event.key == pygame.K_z:
                                 self.pieces.ccw_rotation()
+                            # Debug key -> get new piece with n
+                            if event.key == pygame.K_r:
+                                self.board.reset_board()
+                            if event.key == pygame.K_n:
+                                self.pieces.new_tetromino()
+                            if event.key == pygame.K_s:
+                                self.board.save_board()
+                            if event.key == pygame.K_l:
+                                self.board.load_save()
                 input_cooldown -= 1
                 current_state, color = itemgetter('current_state', 'piece_id')(self.pieces.get_tetromino())
                 self.board.draw_board()
@@ -400,13 +428,28 @@ class game:
                 fps = str(clock.get_fps()).split(".")[0]
                 self.board.clear_side_bar()
                 self.board.draw_fps(fps)
+                self.board.draw_score(self.lines_cleared, self.score)
                 pygame.display.flip()
                 clock.tick(self.fps_goal)
-        
+
     def add_score(self, clear_lines):
-        self.score += clear_lines
-        if clear_lines:
-            print(f"Score: {self.score}")
+        if not clear_lines:
+            return
+        self.lines_cleared += clear_lines
+        if clear_lines == 1:
+            self.score += 1000
+        elif clear_lines == 2:
+            # 5% bonus
+            self.score += 2100
+        elif clear_lines == 3:
+            # 10% bonus
+            self.score += 3300
+        else:
+            # 15% bonus
+            self.score += 4600
+
+            
+
 
 
 
